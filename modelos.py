@@ -1,9 +1,3 @@
-"""
-[Centralized Enum / DTOs]
-Contiene las enumeraciones y los DTOs (Data Transfer Objects) 
-para transportar información limpia entre las distintas capas.
-"""
-
 from enum import Enum
 from dataclasses import dataclass
 from typing import Optional
@@ -19,13 +13,13 @@ class AccionHospital(Enum):
     AUTENTICAR = "autenticar"
     ALTA = "alta"
     VALIDAR = "validar"
+    CONSULTAR_ALTAS = "consultar_altas"
 
 class OrigenPeticion(Enum):
     MEDICO = "medico"
     GARITA = "garita"
 
 # --- DATA TRANSFER OBJECTS (DTOs) ---
-# Usamos herencia para mantener la base unificada (Polimorfismo básico)
 
 @dataclass
 class PeticionBaseDTO:
@@ -47,7 +41,11 @@ class PeticionValidacionDTO(PeticionBaseDTO):
     codigo: str
 
 @dataclass
+class PeticionConsultaDTO(PeticionBaseDTO):
+    medico_id: str
+
+@dataclass
 class RespuestaDTO:
-    status: str  # "ok" o "error"
+    status: str  
     mensaje: str
-    datos: Optional[dict] = None  # Para enviar info extra como el nombre y habitación
+    datos: Optional[dict] = None
