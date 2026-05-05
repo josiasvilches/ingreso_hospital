@@ -9,6 +9,7 @@ import logging
 from pymongo import MongoClient
 from celery.signals import worker_process_init
 from workers.celery_app import app
+from datetime import datetime, timezone
 
 # Configuración de log local para el worker
 logging.basicConfig(level=logging.INFO)
@@ -48,10 +49,10 @@ def procesar_alta_paciente(paciente_id: str, medico_id: str):
         "codigo": codigo_generado,
         "paciente_id": paciente_id,
         "medico_id": medico_id,
-        "estado": "pendiente"
+        "estado": "pendiente",
+        "creado_en": datetime.now(timezone.utc) # Agregamos el timestamp exacto de creación en formato UTC para vencimiento códigos
     }
     
-    # Insertar en base de datos usando la conexión local del worker
     coleccion_codigos.insert_one(documento)
     
     logging.info(f"Alta procesada exitosamente. Código {codigo_generado} generado y guardado en BD.")

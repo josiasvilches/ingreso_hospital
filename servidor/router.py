@@ -8,6 +8,9 @@ from workers.tareas_alta import procesar_alta_paciente
 from repositorio.repo_codigos import RepoCodigos
 from repositorio.repo_pacientes import RepoPacientes
 from servidor.middleware import logging_y_auditoria
+from datetime import datetime, timezone
+
+TIEMPO_EXPIRACION_SEGUNDOS = 30 # tiempo de validez códigos, 30 seg para muestras, debería durar 15 minutos
 
 class RouterDTO:
     def __init__(self, db_conexion, pipe_auth_envio):
@@ -25,8 +28,6 @@ class RouterDTO:
             return self._manejar_alta(dto)
         elif dto.accion == AccionHospital.VALIDAR:
             return self._manejar_validacion(dto)
-        elif dto.accion == AccionHospital.CONSULTAR_ALTAS: # NUEVA RUTA
-            return self._manejar_consulta(dto)
         else:
             return {"status": "error", "mensaje": "Acción desconocida."}
     
@@ -59,12 +60,35 @@ class RouterDTO:
             }
     
     def _manejar_validacion(self, dto):
-        resultado = self.repo_codigos.usar_codigo(dto.codigo)
+        # 1. Pedimos al repositorio que busque el documento sin alterarlo
+        doc = self.repo_codigos.buscar_codigo_pendiente(dto.codigo)
         
-        if resultado:
-            return {"status": "ok", "nombre": resultado.get("paciente_id"), "habitacion": "Pendiente de asignación"}
-        else:
-            return {"status": "error", "mensaje": "Código inválido, expirado o ya utilizado."}
+        if not doc:
+            return {"status": "error", "mensaje": "Código inválido, inexistente o ya utilizado."}
+            
+        # 2. Calculamos el tiempo transcurrido
+        ahora = datetime.now(timezone.utc)
+        hora_creacion = doc["creado_en"].replace(tzinfo=timezone.utc)
+        segundos_transcurridos = (ahora - hora_creacion).total_seconds()
+        
+        # 3. Verificamos si expiró
+        if segundos_transcurridos > TIEMPO_EXPIRACION_SEGUNDOS:
+            # Delegamos al repositorio la actualización del estado
+            self.repo_codigos.marcar_como_expirado(doc["_id"])
+            segundos_pasados = int(segundos_transcurridos - TIEMPO_EXPIRACION_SEGUNDOS)
+            return {
+                "status": "error", 
+                "mensaje": f"Acceso denegado: El código expiró hace {segundos_pasados} segundos."
+            }
+            
+        # 4. Si es válido y está en tiempo, delegamos al repo para quemarlo
+        self.repo_codigos.marcar_como_utilizado(doc["_id"])
+        
+        return {
+            "status": "ok", 
+            "nombre": doc.get("paciente_id"), 
+            "habitacion": "Pendiente de asignación"
+        }
     
     def _manejar_consulta(self, dto):
         codigos = self.repo_codigos.obtener_codigos_por_medico(dto.medico_id)

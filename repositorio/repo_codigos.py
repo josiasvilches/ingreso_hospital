@@ -7,13 +7,25 @@ class RepoCodigos:
         self.db = db_conexion.obtener_db()
         self.coleccion = self.db["codigos"]
 
-    def usar_codigo(self, codigo_str):
-        """
-        Operación Atómica: Busca y actualiza en una sola transacción.
-        """
-        return self.coleccion.find_one_and_update(
-            {"codigo": codigo_str, "estado": "pendiente"},
-            {"$set": {"estado": "usado"}}
+    def buscar_codigo_pendiente(self, codigo):
+        """Busca un código en estado pendiente y retorna el documento completo."""
+        return self.coleccion.find_one({
+            "codigo": codigo, 
+            "estado": "pendiente"
+        })
+
+    def marcar_como_utilizado(self, doc_id):
+        """Actualiza el estado del código a utilizado (quemado)."""
+        self.coleccion.update_one(
+            {"_id": doc_id}, 
+            {"$set": {"estado": "utilizado"}}
+        )
+
+    def marcar_como_expirado(self, doc_id):
+        """Actualiza el estado del código a expirado."""
+        self.coleccion.update_one(
+            {"_id": doc_id}, 
+            {"$set": {"estado": "expirado"}}
         )
 
     def obtener_codigos_por_medico(self, medico_id):
