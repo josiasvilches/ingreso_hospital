@@ -35,12 +35,28 @@ class RouterDTO:
         return self.pipe_auth.recv()
 
     def _manejar_alta(self, dto):
-        # Registramos al paciente en la base de datos de manera sincrónica
+        # Registramos al paciente en la base de datos
         self.repo_pacientes.registrar_paciente(dto.paciente_id)
         
-        # Delegamos la carga pesada a Celery de forma asincrónica
-        procesar_alta_paciente.delay(dto.paciente_id, dto.medico_id)
-        return {"status": "ok", "mensaje": "Petición recibida. El código OTP se está generando en segundo plano."}
+        # 1. Lanzamos la tarea a Celery y guardamos la referencia de la tarea
+        tarea = procesar_alta_paciente.delay(dto.paciente_id, dto.medico_id)
+        
+        try:
+            # 2. Patrón RPC: Esperamos el resultado de Celery (bloquea este hilo ~4 segs)
+            # Retorna exactamente el diccionario que devuelve la tarea en tareas_alta.py
+            resultado = tarea.get(timeout=10) 
+            
+            codigo_generado = resultado.get("codigo")
+            
+            return {
+                "status": "ok", 
+                "mensaje": f"Alta procesada con éxito. Entregue este código al paciente: [{codigo_generado}]"
+            }
+        except Exception as e:
+            return {
+                "status": "error", 
+                "mensaje": f"Error al generar el código OTP: {str(e)}"
+            }
     
     def _manejar_validacion(self, dto):
         resultado = self.repo_codigos.usar_codigo(dto.codigo)

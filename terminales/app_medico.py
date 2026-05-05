@@ -85,10 +85,10 @@ def main():
         else:
             print("[Sistema] Credenciales inválidas. Intente nuevamente.")
 
-    # Bucle 2: Operaciones (Altas)
+    # Bucle 2: Operaciones
     while autenticado:
         print("\n--- Panel de Control ---")
-        accion = input("Presione 'A' (Alta), 'C' (Consultar códigos), o 'S' (Salir): ").upper()
+        accion = input("Presione 'A' para dar un Alta, o 'S' para salir: ").upper()
         
         if accion == 'S':
             break
@@ -102,24 +102,12 @@ def main():
                 medico_id=medico_id
             )
             
+            print("[Sistema] Procesando alta... aguarde unos segundos.")
+            # La terminal se quedará esperando aquí hasta que Celery termine
             respuesta = enviar_peticion(peticion_alta)
+            
             if respuesta:
-                print(f"[Sistema] {respuesta.get('mensaje')}")
-                
-        elif accion == 'C':
-            peticion_consulta = PeticionConsultaDTO(
-                accion=AccionHospital.CONSULTAR_ALTAS,
-                origen=OrigenPeticion.MEDICO,
-                medico_id=medico_id
-            )
-            respuesta = enviar_peticion(peticion_consulta)
-            if respuesta and respuesta.get("status") == "ok":
-                datos = respuesta.get("datos", [])
-                print("\n[Sistema] Códigos generados para sus pacientes:")
-                if not datos:
-                    print("  No hay códigos registrados aún.")
-                for d in datos:
-                    print(f"  -> Paciente: {d.get('paciente_id')} | Código: {d.get('codigo')} | Estado: {d.get('estado')}")
+                print(f"\n[SISTEMA] {respuesta.get('mensaje')}")
                     
 if __name__ == '__main__':
     main()
