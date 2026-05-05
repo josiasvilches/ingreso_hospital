@@ -1,12 +1,9 @@
-"""
-[Facade] Levanta el event loop de asyncio y el socket TCP.
-Sirve como punto de entrada a todo el backend.
-"""
 import asyncio
 import pickle
 import logging
 import sys
 import os
+import socket
 from multiprocessing import Pipe, Process
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -17,12 +14,12 @@ from procesos.autenticador import proceso_autenticador
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
 class ServidorHospital:
-    def __init__(self, host='127.0.0.1', port=8888):
-        self.host = host
+    def __init__(self, port=8888):
+        # Ya no recibimos 'host' por parámetro porque getaddrinfo lo calculará
         self.port = port
         self.db_conexion = ConexionMongo()
         
-        # Implementación de IPC: Se crean los dos extremos del túnel de comunicación
+        # Implementación de IPC
         self.pipe_receptor, self.pipe_emisor = Pipe()
         self.proceso_auth = Process(target=proceso_autenticador, args=(self.pipe_receptor,))
         
@@ -40,8 +37,6 @@ class ServidorHospital:
                     break
                     
                 dto = pickle.loads(datos_bytes)
-                
-                # Desacopla las operaciones sincrónicas (BD/Pipe) del Event Loop usando hilos temporales
                 respuesta = await asyncio.to_thread(self.router.enrutar, dto)
                 
                 writer.write(pickle.dumps(respuesta))
@@ -60,9 +55,19 @@ class ServidorHospital:
         # Levantar el subproceso antes de abrir el servidor de red
         self.proceso_auth.start()
         
-        servidor = await asyncio.start_server(self.manejar_cliente, self.host, self.port)
-        logging.info(f"Servidor Asíncrono inicializado. Escuchando en TCP {self.host}:{self.port}")
+        # Al omitir el host (o pasar None), asyncio usa getaddrinfo internamente.
+        # Evalúa las familias y levanta dinámicamente 1 o 2 sockets (IPv4 e IPv6) 
+        # resolviendo cualquier conflicto de condiciones de carrera.
         
+        servidor = await asyncio.start_server(self.manejar_cliente, host=None, port=self.port)
+        
+        logging.info("--- Servidor Asíncrono Inicializado ---")
+        
+        # Leemos los sockets que asyncio decidió crear para confirmar las familias
+        for sock in servidor.sockets:
+            direccion = sock.getsockname()
+            logging.info(f"Escuchando tráfico en la interfaz: {direccion}")
+            
         async with servidor:
             await servidor.serve_forever()
 

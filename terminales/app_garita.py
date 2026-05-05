@@ -11,20 +11,51 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from modelos import PeticionValidacionDTO, AccionHospital, OrigenPeticion
 
-HOST = '127.0.0.1'
-PORT = 8888
+HOST = sys.argv[1] if len(sys.argv) > 1 else '127.0.0.1'
+PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 8888
 
 def enviar_peticion(dto):
+    """
+    Se conecta al servidor resolviendo dinámicamente si es IPv4 o IPv6,
+    envía el objeto DTO y retorna la respuesta.
+    """
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((HOST, PORT))
-            s.sendall(pickle.dumps(dto))
-            datos_bytes = s.recv(1024)
-            if datos_bytes:
-                return pickle.loads(datos_bytes)
-    except ConnectionRefusedError:
-        print("[Error] Servidor inalcanzable.")
+        # getaddrinfo resuelve la IP ingresada y devuelve la familia correcta (AF_INET o AF_INET6)
+        direcciones = socket.getaddrinfo(HOST, PORT, socket.AF_UNSPEC, socket.SOCK_STREAM)
+    except socket.gaierror as e:
+        print(f"[Error de Red] No se pudo resolver la dirección {HOST}: {e}")
         return None
+
+    conexion = None
+    # Iteramos sobre las resoluciones posibles hasta que una conecte
+    for familia, tipo_socket, protocolo, _, direccion_socket in direcciones:
+        try:
+            conexion = socket.socket(familia, tipo_socket, protocolo)
+            conexion.settimeout(5.0)  # Evita que el cliente se cuelgue infinito si el servidor no responde
+            conexion.connect(direccion_socket)
+            break  # Conexión exitosa, salimos del bucle
+        except OSError:
+            if conexion:
+                conexion.close()
+            conexion = None
+            
+    if conexion is None:
+        print(f"[Error de Red] No se pudo conectar al servidor en {HOST}:{PORT}")
+        return None
+
+    try:
+        # Serializar y enviar
+        conexion.send(pickle.dumps(dto))
+        # Esperar y deserializar respuesta
+        respuesta_bytes = conexion.recv(4096)
+        if not respuesta_bytes:
+            return None
+        return pickle.loads(respuesta_bytes)
+    except Exception as e:
+        print(f"[Error de Comunicación] Hubo un fallo en la transferencia: {e}")
+        return None
+    finally:
+        conexion.close()
 
 def main():
     print("=== TERMINAL GARITA (PUNTO DE CONTROL) ===")
