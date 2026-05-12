@@ -7,6 +7,7 @@ import socket
 import pickle
 import sys
 import os
+import getpass # Para ocultar la contraseña al ingresarla
 
 # Agregamos la ruta raíz para poder importar los modelos
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -67,7 +68,7 @@ def main():
     while not autenticado:
         print("\n--- Iniciar Sesión ---")
         usuario = input("Ingrese su usuario: ")
-        password = input("Ingrese su contraseña: ")
+        password = getpass.getpass("Ingrese su contraseña: ")
 
         peticion_auth = PeticionAutenticacionDTO(
             accion=AccionHospital.AUTENTICAR,
