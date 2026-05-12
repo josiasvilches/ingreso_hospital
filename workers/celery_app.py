@@ -1,13 +1,18 @@
 """
 Configuración e inicialización de la instancia de Celery usando Redis como broker.
 """
+import os
 from celery import Celery
 
-# Configuramos Celery para que use el Redis local en el puerto 6380 como broker
+# Capturamos Host y Puerto dinámicamente. 
+# Si no hay variables (ej: corrés a mano), asume localhost y 6380.
+REDIS_HOST = os.environ.get('REDIS_HOST', '127.0.0.1')
+REDIS_PORT = os.environ.get('REDIS_PORT', '6380')
+
 app = Celery(
     'hospital_workers',
-    broker='redis://127.0.0.1:6380/0',
-    backend='redis://127.0.0.1:6380/0',
+    broker=f'redis://{REDIS_HOST}:{REDIS_PORT}/0',
+    backend=f'redis://{REDIS_HOST}:{REDIS_PORT}/0',
     include=['workers.tareas_alta']
 )
 

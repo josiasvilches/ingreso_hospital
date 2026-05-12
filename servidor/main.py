@@ -55,10 +55,6 @@ class ServidorHospital:
         # Levantar el subproceso antes de abrir el servidor de red
         self.proceso_auth.start()
         
-        # Al omitir el host (o pasar None), asyncio usa getaddrinfo internamente.
-        # Evalúa las familias y levanta dinámicamente 1 o 2 sockets (IPv4 e IPv6) 
-        # resolviendo cualquier conflicto de condiciones de carrera.
-        
         servidor = await asyncio.start_server(self.manejar_cliente, host=None, port=self.port)
         
         logging.info("--- Servidor Asíncrono Inicializado ---")

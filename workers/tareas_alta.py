@@ -6,6 +6,7 @@ import time
 import random
 import string
 import logging
+import os
 from pymongo import MongoClient
 from celery.signals import worker_process_init
 from workers.celery_app import app
@@ -13,6 +14,7 @@ from datetime import datetime, timezone
 
 # Configuración de log local para el worker
 logging.basicConfig(level=logging.INFO)
+MONGO_HOST = os.environ.get('MONGO_HOST', '127.0.0.1')
 
 # Declaramos las variables globalmente pero NO las instanciamos aquí
 cliente_mongo = None
@@ -27,7 +29,7 @@ def inicializar_conexion_db(**kwargs):
     Garantiza que la conexión a MongoDB sea segura y aislada para cada worker.
     """
     global cliente_mongo, db, coleccion_codigos
-    cliente_mongo = MongoClient("mongodb://127.0.0.1:27017/")
+    cliente_mongo = MongoClient(f"mongodb://{MONGO_HOST}:27017/")
     db = cliente_mongo["hospital_db"]
     coleccion_codigos = db["codigos"]
     logging.info("Conexión a MongoDB inicializada en el worker de manera fork-safe.")

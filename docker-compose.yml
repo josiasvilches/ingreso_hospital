@@ -1,4 +1,7 @@
+version: '3.8'
+
 services:
+  # --- INFRAESTRUCTURA ---
   mongodb:
     image: mongo:6.0
     container_name: hospital_mongo
@@ -12,6 +15,33 @@ services:
     container_name: hospital_redis
     ports:
       - "6380:6379"
+
+  # --- Ingreso Hospital ---
+  servidor_python:
+    build: .
+    container_name: hospital_server
+    ports:
+      - "8888:8888"
+    environment:
+      - MONGO_HOST=mongodb
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379  
+    depends_on:
+      - mongodb
+      - redis
+    command: python3 servidor/main.py
+
+  celery_worker:
+    build: .
+    container_name: hospital_worker
+    environment:
+      - MONGO_HOST=mongodb
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - mongodb
+      - redis
+    command: celery -A workers.celery_app worker --loglevel=info
 
 volumes:
   mongo_data:

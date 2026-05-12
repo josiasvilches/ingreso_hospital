@@ -14,11 +14,11 @@ def proceso_autenticador(pipe_conexion):
     logging.info("Subproceso Autenticador (IPC) iniciado y esperando peticiones.")
     
     # Capturamos la variable de entorno en caso de estar en una arquitectura distribuida
-    host_mongo = os.environ.get('HOSPITAL_HOST', '127.0.0.1')
+    MONGO_HOST = os.environ.get('MONGO_HOST', '127.0.0.1')
     
     try:
         # 1. Instanciamos la conexión aquí adentro para garantizar el aislamiento del proceso
-        cliente_mongo = MongoClient(f"mongodb://{host_mongo}:27017/")
+        cliente_mongo = MongoClient(f"mongodb://{MONGO_HOST}:27017/")
         db = cliente_mongo["hospital_db"]
         coleccion_usuarios = db["usuarios"]
         logging.info("Conexión a base de datos de usuarios establecida con éxito.")
